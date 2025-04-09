@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Discord User Info</title>
+</head>
+<body>
+  <h1>Welcome, <span id="username">Loading...</span></h1>
+
+  <script>
+    const clientId = "YOUR_CLIENT_ID";
+    const clientSecret = "YOUR_CLIENT_SECRET";
+    const redirectUri = "https://yourgithubusername.github.io/YOUR_REPO/"; // must match exactly
+
+    async function fetchDiscordUser(code) {
+      const params = new URLSearchParams();
+      params.append("client_id", clientId);
+      params.append("client_secret", clientSecret);
+      params.append("grant_type", "authorization_code");
+      params.append("code", code);
+      params.append("redirect_uri", redirectUri);
+      params.append("scope", "identify");
+
+      const tokenResponse = await fetch("https://discord.com/api/oauth2/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: params
+      });
+
+      const tokenData = await tokenResponse.json();
+
+      if (!tokenData.access_token) {
+        document.getElementById("username").textContent = "Failed to get token.";
+        console.error("Token error:", tokenData);
+        return;
+      }
+
+      const userResponse = await fetch("https://discord.com/api/users/@me", {
+        headers: {
+          Authorization: `Bearer ${tokenData.access_token}`
+        }
+      });
+
+      const userData = await userResponse.json();
+
+      if (userData.username) {
+        document.getElementById("username").textContent = `${userData.username}#${userData.discriminator}`;
+      } else {
+        document.getElementById("username").textContent = "Failed to fetch user info.";
+        console.error("User error:", userData);
+      }
+    }
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const code = urlParams.get("code");
+
+    if (code) {
+      fetchDiscordUser(code).catch(err => {
+        console.error("Error:", err);
+        document.getElementById("username").textContent = "Something went wrong.";
+      });
+    } else {
+      document.getElementById("username").textContent = "No code found in URL.";
+    }
+  </script>
+</body>
+</html>
