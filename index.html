@@ -1,97 +1,179 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Discord Server Viewer</title>
+  <meta charset="UTF-8">
+  <title>Login with Discord</title>
   <style>
     body {
-      background: #2c2f33;
-      color: white;
       font-family: Arial, sans-serif;
       margin: 0;
-      padding: 20px;
+      background: #2c2f33;
+      color: #fff;
     }
-    .server-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-      gap: 20px;
-    }
-    .server-card {
-      text-align: center;
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 30px;
       background: #23272a;
-      border-radius: 10px;
-      padding: 10px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .login-btn {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      background: #5865F2;
+      color: #fff;
+      border-radius: 5px;
       cursor: pointer;
-      transition: background 0.3s;
     }
-    .server-card:hover {
-      background: #3a3f45;
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
     }
-    .server-card img {
+
+    .user-info img {
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
-      width: 64px;
-      height: 64px;
     }
-    .webhook-details {
+
+    .server-list {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 20px;
+      justify-content: center;
       margin-top: 20px;
+    }
+
+    .server {
+      text-align: center;
+      cursor: pointer;
+    }
+
+    .server img {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+    }
+
+    .content {
+      padding: 50px;
+      text-align: center;
     }
   </style>
 </head>
 <body>
-  <h1>Discord Admin/Owned Servers</h1>
-  <div id="login-area">
-    <button onclick="login()">Login with Discord</button>
+  <header>
+    <h1>My App</h1>
+    <div id="userArea">
+      <button class="login-btn" onclick="loginWithDiscord()">Login with Discord</button>
+    </div>
+  </header>
+
+  <div class="content">
+    <p id="text">Welcome! Please log in with Discord to continue.</p>
+    <div id="serverArea"></div>
   </div>
-  <div id="server-area" class="server-grid"></div>
-  <div id="webhook-details" class="webhook-details"></div>
 
   <script>
     const clientId = '1293659946164158495';
-    const redirectUri = 'https://danielschijvershof.github.io/Testy/'; // Change if hosted
-    const scope = 'identify guilds';
+    const redirectUri = 'https://danielschijvershof.github.io/Testy/';
+    const scope = 'identify guilds webhook.incoming';
 
-    function login() {
-      window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}`;
-    }
+    // Hardcoded token for testing purposes
+    const TOKEN = 'your-bot-token-here'; // Replace this with your actual bot token
 
-    async function getWebhooks(guildId) {
-      const res = await fetch(`/webhooks/${guildId}`);
-      const data = await res.json();
-      const details = document.getElementById('webhook-details');
-      if (data.webhooks.length === 0) {
-        details.innerHTML = `<h3>No webhooks found in ${data.guildName}</h3>`;
-        return;
-      }
-
-      details.innerHTML = `<h3>Webhooks in ${data.guildName}:</h3><ul>` + data.webhooks.map(w =>
-        `<li><strong>${w.name}</strong> — in #${w.channelName}</li>`
-      ).join('') + '</ul>';
+    function loginWithDiscord() {
+      const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}`;
+      window.location.href = authUrl;
     }
 
     window.onload = async () => {
       const hash = window.location.hash;
-      if (!hash.includes('access_token')) return;
+      if (hash && hash.includes('access_token')) {
+        const params = new URLSearchParams(hash.substring(1));
+        const accessToken = params.get('access_token');
 
-      document.getElementById('login-area').style.display = 'none';
-      const params = new URLSearchParams(hash.substring(1));
-      const token = params.get('access_token');
+        const userResponse = await fetch('https://discord.com/api/users/@me', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
 
-      const userGuilds = await fetch('https://discord.com/api/users/@me/guilds', {
-        headers: { Authorization: `Bearer ${token}` }
-      }).then(r => r.json());
+        const user = await userResponse.json();
 
-      const adminGuilds = userGuilds.filter(g =>
-        g.owner || (g.permissions & 0x00000008)
-      );
+        const userArea = document.getElementById('userArea');
+        userArea.innerHTML = `
+          <div class="user-info">
+            <span>${user.username}#${user.discriminator}</span>
+            <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64" alt="User Avatar">
+          </div>
+        `;
+        const text = document.getElementById('text');
+        text.style.display = 'none';
 
-      const serverArea = document.getElementById('server-area');
-      serverArea.innerHTML = adminGuilds.map(g => `
-        <div class="server-card" onclick="getWebhooks('${g.id}')">
-          <img src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64" />
-          <div>${g.name}</div>
-        </div>
-      `).join('');
+        // Fetch user's guilds
+        const guildsResponse = await fetch('https://discord.com/api/users/@me/guilds', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
+
+        const guilds = await guildsResponse.json();
+        const serverArea = document.getElementById('serverArea');
+        serverArea.innerHTML = '<h2>Your Servers:</h2>';
+
+        // Display the user's guilds
+        guilds.forEach(guild => {
+          const serverElement = document.createElement('div');
+          serverElement.classList.add('server');
+          serverElement.innerHTML = `
+            <img src="https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64" alt="${guild.name} Icon">
+            <p>${guild.name}</p>
+          `;
+          serverElement.onclick = () => viewWebhooks(guild.id);
+          serverArea.appendChild(serverElement);
+        });
+      }
     };
+
+    async function viewWebhooks(guildId) {
+      const webhooksResponse = await fetch(`https://discord.com/api/v10/guilds/${guildId}/webhooks`, {
+        headers: {
+          Authorization: `Bot ${TOKEN}`
+        }
+      });
+
+      const webhooks = await webhooksResponse.json();
+      const webhookInfo = document.createElement('div');
+      webhookInfo.innerHTML = `<h3>Webhooks for ${guildId}:</h3>`;
+
+      if (webhooks.length === 0) {
+        webhookInfo.innerHTML += '<p>No webhooks found.</p>';
+      } else {
+        webhooks.forEach(webhook => {
+          webhookInfo.innerHTML += `
+            <p>Webhook Name: ${webhook.name}</p>
+            <p>Webhook URL: <a href="${webhook.url}" target="_blank">${webhook.url}</a></p>
+            <p>Channel ID: ${webhook.channel_id}</p>
+            <br>
+          `;
+        });
+      }
+
+      const serverArea = document.getElementById('serverArea');
+      serverArea.innerHTML = '';
+      serverArea.appendChild(webhookInfo);
+    }
   </script>
 </body>
 </html>
