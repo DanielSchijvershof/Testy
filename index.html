@@ -69,6 +69,15 @@
       padding: 50px;
       text-align: center;
     }
+
+    .message {
+      margin-top: 20px;
+      padding: 10px;
+      border-radius: 5px;
+      background-color: #ff5555;
+      color: white;
+      text-align: center;
+    }
   </style>
 </head>
 <body>
@@ -82,6 +91,7 @@
   <div class="content">
     <p id="text">Welcome! Please log in with Discord to continue.</p>
     <div id="serverArea"></div>
+    <div id="messageArea"></div>
   </div>
 
   <script>
@@ -151,40 +161,28 @@
               <img src="https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64" alt="${guild.name} Icon">
               <p>${guild.name}</p>
             `;
-            serverElement.onclick = () => viewWebhooks(guild.id);
+            serverElement.onclick = () => checkBotInServer(guild.id, guild.name);
             serverArea.appendChild(serverElement);
           }
         }
       }
     };
 
-    async function viewWebhooks(guildId) {
-      const webhooksResponse = await fetch(`https://discord.com/api/v10/guilds/${guildId}/webhooks`, {
+    async function checkBotInServer(guildId, guildName) {
+      const messageArea = document.getElementById('messageArea');
+      const botInGuildResponse = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${TOKEN}`, {
         headers: {
           Authorization: `Bot ${TOKEN}`
         }
       });
 
-      const webhooks = await webhooksResponse.json();
-      const webhookInfo = document.createElement('div');
-      webhookInfo.innerHTML = `<h3>Webhooks for ${guildId}:</h3>`;
-
-      if (webhooks.length === 0) {
-        webhookInfo.innerHTML += '<p>No webhooks found.</p>';
+      if (botInGuildResponse.ok) {
+        // If the bot is in the server, say it's good
+        messageArea.innerHTML = `<div class="message">Bot is already in ${guildName}. You're good!</div>`;
       } else {
-        webhooks.forEach(webhook => {
-          webhookInfo.innerHTML += `
-            <p>Webhook Name: ${webhook.name}</p>
-            <p>Webhook URL: <a href="${webhook.url}" target="_blank">${webhook.url}</a></p>
-            <p>Channel ID: ${webhook.channel_id}</p>
-            <br>
-          `;
-        });
+        // If the bot isn't in the server, tell the user to add it
+        messageArea.innerHTML = `<div class="message">The bot needs to be added to ${guildName}.</div>`;
       }
-
-      const serverArea = document.getElementById('serverArea');
-      serverArea.innerHTML = '';
-      serverArea.appendChild(webhookInfo);
     }
   </script>
 </body>
