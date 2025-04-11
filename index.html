@@ -1,10 +1,45 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Discord User Info</title>
+  <meta charset="UTF-8">
+  <title>Discord OAuth2 Login</title>
 </head>
 <body>
-  <h1>Welcome, <span id="username">Loading...</span></h1>
+  <h1>Login with Discord</h1>
+  <button onclick="loginWithDiscord()">Login</button>
+
+  <div id="userInfo" style="margin-top:20px;"></div>
+
+  <script>
+    const clientId = '1293659946164158495';
+    const redirectUri = 'https://danielschijvershof.github.io/Testy/'; // Must match what's in your Discord app settings
+    const scope = 'identify';
+
+    function loginWithDiscord() {
+      const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}`;
+      window.location.href = authUrl;
+    }
+
+    // Handle the redirect and extract access token
+    window.onload = async () => {
+      const hash = window.location.hash;
+      if (hash && hash.includes('access_token')) {
+        const params = new URLSearchParams(hash.substring(1));
+        const accessToken = params.get('access_token');
+
+        const userResponse = await fetch('https://discord.com/api/users/@me', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        });
+
+        const userData = await userResponse.json();
+        document.getElementById('userInfo').innerHTML = `
+          <h2>Hello, ${userData.username}#${userData.discriminator}!</h2>
+          <p>User ID: ${userData.id}</p>
+        `;
+      }
+    };
+  </script>
 </body>
 </html>
