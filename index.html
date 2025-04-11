@@ -50,6 +50,15 @@
       padding: 50px;
       text-align: center;
     }
+
+    ul {
+      list-style: none;
+      padding: 0;
+    }
+
+    li {
+      padding: 8px 0;
+    }
   </style>
 </head>
 <body>
@@ -61,16 +70,16 @@
   </header>
 
   <div class="content">
-    <p>Welcome! Please log in with Discord to continue.</p>
+    <p id="text">Welcome! Please log in with Discord to continue.</p>
   </div>
 
   <script>
-    const clientId = '1293659946164158495';
-    const redirectUri = 'https://danielschijvershof.github.io/Testy/';
-    const scope = 'identify';
+    const clientId = '1293659946164158495'; // Replace with your Client ID
+    const redirectUri = 'https://danielschijvershof.github.io/Testy/'; // Replace with your Redirect URI
+    const scope = 'identify guilds';
 
     function loginWithDiscord() {
-      const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}`;
+      const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}`;
       window.location.href = authUrl;
     }
 
@@ -80,20 +89,39 @@
         const params = new URLSearchParams(hash.substring(1));
         const accessToken = params.get('access_token');
 
+        // Fetch user info
         const userResponse = await fetch('https://discord.com/api/users/@me', {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
+          headers: { Authorization: `Bearer ${accessToken}` }
         });
-
         const user = await userResponse.json();
 
+        // Show avatar and username
         const userArea = document.getElementById('userArea');
         userArea.innerHTML = `
           <div class="user-info">
             <span>${user.username}#${user.discriminator}</span>
             <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64" alt="User Avatar">
           </div>
+        `;
+        document.getElementById('text').style.display = 'none';
+
+        // Fetch user guilds
+        const guildResponse = await fetch('https://discord.com/api/users/@me/guilds', {
+          headers: { Authorization: `Bearer ${accessToken}` }
+        });
+        const guilds = await guildResponse.json();
+
+        // Filter: owner or has Administrator permission
+        const adminGuilds = guilds.filter(g =>
+          g.owner || (g.permissions & 0x00000008)
+        );
+
+        // Show guilds
+        const content = document.querySelector('.content');
+        const list = adminGuilds.map(guild => `<li>${guild.name}</li>`).join('');
+        content.innerHTML = `
+          <h2>Your Admin/Owned Servers:</h2>
+          <ul>${list || '<li>None found</li>'}</ul>
         `;
       }
     };
