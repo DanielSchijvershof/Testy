@@ -2,17 +2,71 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Discord OAuth2 Login</title>
+  <title>Login with Discord</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      background: #2c2f33;
+      color: #fff;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 30px;
+      background: #23272a;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: 24px;
+    }
+
+    .login-btn {
+      padding: 10px 20px;
+      font-size: 16px;
+      border: none;
+      background: #5865F2;
+      color: #fff;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .user-info img {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+    }
+
+    .content {
+      padding: 50px;
+      text-align: center;
+    }
+  </style>
 </head>
 <body>
-  <h1>Login with Discord</h1>
-  <button onclick="loginWithDiscord()">Login</button>
+  <header>
+    <h1>My App</h1>
+    <div id="userArea">
+      <button class="login-btn" onclick="loginWithDiscord()">Login with Discord</button>
+    </div>
+  </header>
 
-  <div id="userInfo" style="margin-top:20px;"></div>
+  <div class="content">
+    <p>Welcome! Please log in with Discord to continue.</p>
+  </div>
 
   <script>
     const clientId = '1293659946164158495';
-    const redirectUri = 'https://danielschijvershof.github.io/Testy/'; // Must match what's in your Discord app settings
+    const redirectUri = 'https://danielschijvershof.github.io/Testy/';
     const scope = 'identify';
 
     function loginWithDiscord() {
@@ -20,7 +74,6 @@
       window.location.href = authUrl;
     }
 
-    // Handle the redirect and extract access token
     window.onload = async () => {
       const hash = window.location.hash;
       if (hash && hash.includes('access_token')) {
@@ -33,10 +86,14 @@
           }
         });
 
-        const userData = await userResponse.json();
-        document.getElementById('userInfo').innerHTML = `
-          <h2>Hello, ${userData.username}#${userData.discriminator}!</h2>
-          <p>User ID: ${userData.id}</p>
+        const user = await userResponse.json();
+
+        const userArea = document.getElementById('userArea');
+        userArea.innerHTML = `
+          <div class="user-info">
+            <span>${user.username}#${user.discriminator}</span>
+            <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64" alt="User Avatar">
+          </div>
         `;
       }
     };
