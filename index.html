@@ -87,10 +87,10 @@
   <script>
     const clientId = '1293659946164158495';
     const redirectUri = 'https://danielschijvershof.github.io/Testy/';
-    const scope = 'identify guilds webhook.incoming';
+    const scope = 'identify guilds';
 
-    // Hardcoded token for testing purposes
-    const TOKEN = 'your-bot-token-here'; // Replace this with your actual bot token
+    // Hardcoded token for testing purposes (use the bot's token)
+    const TOKEN = 'your-bot-token-here'; // Replace with your actual bot token
 
     function loginWithDiscord() {
       const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}`;
@@ -121,28 +121,40 @@
         const text = document.getElementById('text');
         text.style.display = 'none';
 
-        // Fetch user's guilds
-        const guildsResponse = await fetch('https://discord.com/api/users/@me/guilds', {
+        // Fetch bot's guilds (servers) using the bot token
+        const guildsResponse = await fetch('https://discord.com/api/v10/users/@me/guilds', {
           headers: {
-            Authorization: `Bearer ${accessToken}`
+            Authorization: `Bot ${TOKEN}` // Bot token is used here
           }
         });
 
         const guilds = await guildsResponse.json();
         const serverArea = document.getElementById('serverArea');
-        serverArea.innerHTML = '<h2>Your Servers:</h2>';
+        serverArea.innerHTML = '<h2>Your Bot Servers (Admin/Owner Only):</h2>';
 
-        // Display the user's guilds
-        guilds.forEach(guild => {
-          const serverElement = document.createElement('div');
-          serverElement.classList.add('server');
-          serverElement.innerHTML = `
-            <img src="https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64" alt="${guild.name} Icon">
-            <p>${guild.name}</p>
-          `;
-          serverElement.onclick = () => viewWebhooks(guild.id);
-          serverArea.appendChild(serverElement);
-        });
+        // Filter the guilds based on user's admin/ownership
+        for (const guild of guilds) {
+          const memberResponse = await fetch(`https://discord.com/api/v10/guilds/${guild.id}/members/${user.id}`, {
+            headers: {
+              Authorization: `Bot ${TOKEN}`
+            }
+          });
+
+          const member = await memberResponse.json();
+          const hasAdminPermission = member.permissions.includes('8'); // 8 is the integer value for Administrator permission
+          const isOwner = guild.owner_id === user.id;
+
+          if (hasAdminPermission || isOwner) {
+            const serverElement = document.createElement('div');
+            serverElement.classList.add('server');
+            serverElement.innerHTML = `
+              <img src="https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64" alt="${guild.name} Icon">
+              <p>${guild.name}</p>
+            `;
+            serverElement.onclick = () => viewWebhooks(guild.id);
+            serverArea.appendChild(serverElement);
+          }
+        }
       }
     };
 
