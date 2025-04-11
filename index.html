@@ -1,129 +1,96 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Login with Discord</title>
+  <meta charset="UTF-8" />
+  <title>Discord Server Viewer</title>
   <style>
     body {
+      background: #2c2f33;
+      color: white;
       font-family: Arial, sans-serif;
       margin: 0;
-      background: #2c2f33;
-      color: #fff;
+      padding: 20px;
     }
-
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 15px 30px;
-      background: #23272a;
+    .server-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+      gap: 20px;
     }
-
-    h1 {
-      margin: 0;
-      font-size: 24px;
-    }
-
-    .login-btn {
-      padding: 10px 20px;
-      font-size: 16px;
-      border: none;
-      background: #5865F2;
-      color: #fff;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .user-info img {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-    }
-
-    .content {
-      padding: 50px;
+    .server-card {
       text-align: center;
+      background: #23272a;
+      border-radius: 10px;
+      padding: 10px;
+      cursor: pointer;
+      transition: background 0.3s;
     }
-
-    ul {
-      list-style: none;
-      padding: 0;
+    .server-card:hover {
+      background: #3a3f45;
     }
-
-    li {
-      padding: 8px 0;
+    .server-card img {
+      border-radius: 50%;
+      width: 64px;
+      height: 64px;
+    }
+    .webhook-details {
+      margin-top: 20px;
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1>My App</h1>
-    <div id="userArea">
-      <button class="login-btn" onclick="loginWithDiscord()">Login with Discord</button>
-    </div>
-  </header>
-
-  <div class="content">
-    <p id="text">Welcome! Please log in with Discord to continue.</p>
+  <h1>Discord Admin/Owned Servers</h1>
+  <div id="login-area">
+    <button onclick="login()">Login with Discord</button>
   </div>
+  <div id="server-area" class="server-grid"></div>
+  <div id="webhook-details" class="webhook-details"></div>
 
   <script>
-    const clientId = '1293659946164158495'; // Replace with your Client ID
-    const redirectUri = 'https://danielschijvershof.github.io/Testy/'; // Replace with your Redirect URI
+    const clientId = '1293659946164158495';
+    const redirectUri = 'https://danielschijvershof.github.io/Testy/'; // Change if hosted
     const scope = 'identify guilds';
 
-    function loginWithDiscord() {
-      const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${encodeURIComponent(scope)}`;
-      window.location.href = authUrl;
+    function login() {
+      window.location.href = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}`;
+    }
+
+    async function getWebhooks(guildId) {
+      const res = await fetch(`/webhooks/${guildId}`);
+      const data = await res.json();
+      const details = document.getElementById('webhook-details');
+      if (data.webhooks.length === 0) {
+        details.innerHTML = `<h3>No webhooks found in ${data.guildName}</h3>`;
+        return;
+      }
+
+      details.innerHTML = `<h3>Webhooks in ${data.guildName}:</h3><ul>` + data.webhooks.map(w =>
+        `<li><strong>${w.name}</strong> — in #${w.channelName}</li>`
+      ).join('') + '</ul>';
     }
 
     window.onload = async () => {
       const hash = window.location.hash;
-      if (hash && hash.includes('access_token')) {
-        const params = new URLSearchParams(hash.substring(1));
-        const accessToken = params.get('access_token');
+      if (!hash.includes('access_token')) return;
 
-        // Fetch user info
-        const userResponse = await fetch('https://discord.com/api/users/@me', {
-          headers: { Authorization: `Bearer ${accessToken}` }
-        });
-        const user = await userResponse.json();
+      document.getElementById('login-area').style.display = 'none';
+      const params = new URLSearchParams(hash.substring(1));
+      const token = params.get('access_token');
 
-        // Show avatar and username
-        const userArea = document.getElementById('userArea');
-        userArea.innerHTML = `
-          <div class="user-info">
-            <span>${user.username}#${user.discriminator}</span>
-            <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64" alt="User Avatar">
-          </div>
-        `;
-        document.getElementById('text').style.display = 'none';
+      const userGuilds = await fetch('https://discord.com/api/users/@me/guilds', {
+        headers: { Authorization: `Bearer ${token}` }
+      }).then(r => r.json());
 
-        // Fetch user guilds
-        const guildResponse = await fetch('https://discord.com/api/users/@me/guilds', {
-          headers: { Authorization: `Bearer ${accessToken}` }
-        });
-        const guilds = await guildResponse.json();
+      const adminGuilds = userGuilds.filter(g =>
+        g.owner || (g.permissions & 0x00000008)
+      );
 
-        // Filter: owner or has Administrator permission
-        const adminGuilds = guilds.filter(g =>
-          g.owner || (g.permissions & 0x00000008)
-        );
-
-        // Show guilds
-        const content = document.querySelector('.content');
-        const list = adminGuilds.map(guild => `<li>${guild.name}</li>`).join('');
-        content.innerHTML = `
-          <h2>Your Admin/Owned Servers:</h2>
-          <ul>${list || '<li>None found</li>'}</ul>
-        `;
-      }
+      const serverArea = document.getElementById('server-area');
+      serverArea.innerHTML = adminGuilds.map(g => `
+        <div class="server-card" onclick="getWebhooks('${g.id}')">
+          <img src="https://cdn.discordapp.com/icons/${g.id}/${g.icon}.png?size=64" />
+          <div>${g.name}</div>
+        </div>
+      `).join('');
     };
   </script>
 </body>
