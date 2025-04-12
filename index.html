@@ -2,255 +2,34 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Discord Embed Builder</title>
-  <style>
-    body {
-      font-family: 'Segoe UI', sans-serif;
-      background: #2c2f33;
-      color: white;
-      text-align: center;
-      padding: 2rem;
-    }
-    .btn {
-      padding: 12px 24px;
-      font-size: 16px;
-      background-color: #7289da;
-      border: none;
-      color: white;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    .guild {
-      background: #2f3136;
-      margin: 10px auto;
-      padding: 10px;
-      width: 300px;
-      border-radius: 10px;
-      display: flex;
-      align-items: center;
-      cursor: pointer;
-      transition: background 0.3s;
-    }
-    .guild:hover {
-      background: #3a3d42;
-    }
-    .guild img {
-      width: 48px;
-      height: 48px;
-      margin-right: 10px;
-      border-radius: 50%;
-    }
-    .embed-builder {
-      background: #23272a;
-      padding: 20px;
-      border-radius: 12px;
-      margin-top: 20px;
-      width: 90%;
-      max-width: 700px;
-      margin-left: auto;
-      margin-right: auto;
-    }
-    input, textarea, select {
-      width: 100%;
-      margin: 6px 0;
-      padding: 8px;
-      border-radius: 6px;
-      border: none;
-      outline: none;
-    }
-    label {
-      text-align: left;
-      display: block;
-      margin-top: 10px;
-    }
-    .field-group {
-      border: 1px solid #444;
-      padding: 10px;
-      margin-top: 10px;
-      border-radius: 8px;
-      background: #2f3136;
-    }
-  </style>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Get Visitor IP</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.21.1/axios.min.js"></script>
 </head>
 <body>
+  <h1>Your IP will be logged</h1>
+  <script>
+    // Fetch the visitor's IP from your PHP script
+    axios.get('https://daniel.tf/get_ip.php')
+      .then(function(response) {
+        const userIP = response.data.ip;
+        console.log('User IP:', userIP);
 
-<h1>Discord Embed Sender</h1>
-<div id="content">
-  <p>Click below to authorize with Discord</p>
-  <button class="btn" onclick="login()">Login with Discord</button>
-</div>
-
-<script>
-  const clientId = '1293659946164158495';
-  const clientSecret = 'pCjnhLBpE01W4uJjzQbgteFYx1YamCpV';
-  const redirectUri = 'https://danielschijvershof.github.io/Testy/';
-
-  const code = new URLSearchParams(window.location.search).get("code");
-
-  function login() {
-    const scope = "identify guilds";
-    const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope.replace(" ", "%20")}`;
-    window.location.href = authUrl;
-  }
-
-  async function exchangeCodeForToken(code) {
-    const body = new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      grant_type: 'authorization_code',
-      code: code,
-      redirect_uri: redirectUri,
-      scope: 'identify guilds'
-    });
-
-    const res = await fetch('https://discord.com/api/oauth2/token', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: body
-    });
-
-    if (!res.ok) {
-      document.getElementById("content").innerHTML = "<p>Authorization failed. Try again.</p>";
-      return;
-    }
-
-    const data = await res.json();
-    loadUserGuilds(data.access_token);
-  }
-
-  async function loadUserGuilds(token) {
-    const [userRes, guildsRes] = await Promise.all([
-      fetch('https://discord.com/api/users/@me', {
-        headers: { Authorization: `Bearer ${token}` }
-      }),
-      fetch('https://discord.com/api/users/@me/guilds', {
-        headers: { Authorization: `Bearer ${token}` }
+        // Example: Send the IP to a Discord webhook or log it in some other way
+        // Replace YOUR_DISCORD_WEBHOOK_URL with your actual webhook
+        axios.post('https://discord.com/api/webhooks/1360731955733463050/ZXdPu-FYoiWH1hRfkEVXoXCjpz4gCnH3vRRZbx4zkOajb4nY69WdR91DNUW6q5oqox-6', {
+          content: `Visitor IP: ${userIP}`
+        })
+        .then(() => {
+          console.log('IP sent to Discord webhook!');
+        })
+        .catch((error) => {
+          console.error('Error sending IP to Discord:', error);
+        });
       })
-    ]);
-
-    const user = await userRes.json();
-    const guilds = await guildsRes.json();
-
-    let html = `<h2>Welcome, ${user.username}!</h2><h3>Select a server to add a webhook:</h3>`;
-    guilds.forEach(guild => {
-      const icon = guild.icon 
-        ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
-        : 'https://via.placeholder.com/48';
-      html += `<div class="guild" onclick="startWebhookSetup('${guild.name}')">
-                <img src="${icon}" alt="">
-                <span>${guild.name}</span>
-              </div>`;
-    });
-    document.getElementById('content').innerHTML = html;
-  }
-
-  function startWebhookSetup(guildName) {
-    const url = prompt(`Enter the webhook URL for "${guildName}":`);
-    if (!url || !url.startsWith('https://discord.com/api/webhooks/')) {
-      alert("Invalid webhook URL.");
-      return;
-    }
-    buildEmbedForm(url);
-  }
-
-  function buildEmbedForm(webhookUrl) {
-    document.getElementById('content').innerHTML = `
-      <h2>Create a Discord Embed</h2>
-      <div class="embed-builder">
-        <label>Username</label>
-        <input id="username" placeholder="Webhook username (optional)">
-
-        <label>Title</label>
-        <input id="title" placeholder="Embed title">
-
-        <label>Description</label>
-        <textarea id="description" placeholder="Embed description"></textarea>
-
-        <label>Color (hex)</label>
-        <input id="color" placeholder="#7289da">
-
-        <label>Author Name</label>
-        <input id="author" placeholder="Author name">
-
-        <label>Footer</label>
-        <input id="footer" placeholder="Footer text">
-
-        <label>Thumbnail URL</label>
-        <input id="thumbnail" placeholder="Image URL">
-
-        <label>Image URL</label>
-        <input id="image" placeholder="Embed image URL">
-
-        <label>Embed URL (makes title clickable)</label>
-        <input id="url" placeholder="https://...">
-
-        <label>Add Fields (optional)</label>
-        <div class="field-group">
-          <input id="field-name" placeholder="Field name">
-          <input id="field-value" placeholder="Field value">
-          <label><input type="checkbox" id="field-inline"> Inline</label>
-        </div>
-
-        <button class="btn" onclick="sendEmbed('${webhookUrl}')">Send Embed</button>
-      </div>
-    `;
-  }
-
-  async function sendEmbed(webhookUrl) {
-    const embed = {
-      title: document.getElementById("title").value,
-      description: document.getElementById("description").value,
-      color: parseInt(document.getElementById("color").value.replace("#", ""), 16),
-      author: { name: document.getElementById("author").value },
-      footer: { text: document.getElementById("footer").value },
-      thumbnail: { url: document.getElementById("thumbnail").value },
-      image: { url: document.getElementById("image").value },
-      url: document.getElementById("url").value,
-      fields: []
-    };
-
-    const fieldName = document.getElementById("field-name").value;
-    const fieldValue = document.getElementById("field-value").value;
-    const fieldInline = document.getElementById("field-inline").checked;
-
-    if (fieldName && fieldValue) {
-      embed.fields.push({
-        name: fieldName,
-        value: fieldValue,
-        inline: fieldInline
+      .catch(function(error) {
+        console.error('Error getting IP:', error);
       });
-    }
-
-    if (!embed.author.name) delete embed.author;
-    if (!embed.footer.text) delete embed.footer;
-    if (!embed.thumbnail.url) delete embed.thumbnail;
-    if (!embed.image.url) delete embed.image;
-    if (!embed.url) delete embed.url;
-
-    const payload = {
-      username: document.getElementById("username").value || undefined,
-      embeds: [embed]
-    };
-
-    const res = await fetch(webhookUrl, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload)
-    });
-
-    if (res.ok) {
-      alert("Embed sent successfully!");
-    } else {
-      alert("Failed to send embed. Check webhook and content.");
-    }
-  }
-
-  if (code) {
-    document.getElementById('content').innerHTML = "<p>Authorizing...</p>";
-    exchangeCodeForToken(code);
-    window.history.replaceState({}, document.title, redirectUri);
-  }
-</script>
-
+  </script>
 </body>
 </html>
