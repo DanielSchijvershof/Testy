@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Discord Webhook Tester</title>
+  <title>Discord Embed Builder</title>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -40,11 +40,41 @@
       margin-right: 10px;
       border-radius: 50%;
     }
+    .embed-builder {
+      background: #23272a;
+      padding: 20px;
+      border-radius: 12px;
+      margin-top: 20px;
+      width: 90%;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+    input, textarea, select {
+      width: 100%;
+      margin: 6px 0;
+      padding: 8px;
+      border-radius: 6px;
+      border: none;
+      outline: none;
+    }
+    label {
+      text-align: left;
+      display: block;
+      margin-top: 10px;
+    }
+    .field-group {
+      border: 1px solid #444;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 8px;
+      background: #2f3136;
+    }
   </style>
 </head>
 <body>
 
-<h1>My Discord Servers</h1>
+<h1>Discord Embed Sender</h1>
 <div id="content">
   <p>Click below to authorize with Discord</p>
   <button class="btn" onclick="login()">Login with Discord</button>
@@ -101,12 +131,12 @@
     const user = await userRes.json();
     const guilds = await guildsRes.json();
 
-    let html = `<h2>Welcome, ${user.username}!</h2><h3>Click a server to test a webhook:</h3>`;
+    let html = `<h2>Welcome, ${user.username}!</h2><h3>Select a server to add a webhook:</h3>`;
     guilds.forEach(guild => {
       const icon = guild.icon 
         ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
         : 'https://via.placeholder.com/48';
-      html += `<div class="guild" onclick="promptWebhook('${guild.name}')">
+      html += `<div class="guild" onclick="startWebhookSetup('${guild.name}')">
                 <img src="${icon}" alt="">
                 <span>${guild.name}</span>
               </div>`;
@@ -114,26 +144,104 @@
     document.getElementById('content').innerHTML = html;
   }
 
-  async function promptWebhook(serverName) {
-    const url = prompt(`Enter the webhook URL for "${serverName}":`);
+  function startWebhookSetup(guildName) {
+    const url = prompt(`Enter the webhook URL for "${guildName}":`);
     if (!url || !url.startsWith('https://discord.com/api/webhooks/')) {
       alert("Invalid webhook URL.");
       return;
     }
+    buildEmbedForm(url);
+  }
 
-    const res = await fetch(url, {
+  function buildEmbedForm(webhookUrl) {
+    document.getElementById('content').innerHTML = `
+      <h2>Create a Discord Embed</h2>
+      <div class="embed-builder">
+        <label>Username</label>
+        <input id="username" placeholder="Webhook username (optional)">
+
+        <label>Title</label>
+        <input id="title" placeholder="Embed title">
+
+        <label>Description</label>
+        <textarea id="description" placeholder="Embed description"></textarea>
+
+        <label>Color (hex)</label>
+        <input id="color" placeholder="#7289da">
+
+        <label>Author Name</label>
+        <input id="author" placeholder="Author name">
+
+        <label>Footer</label>
+        <input id="footer" placeholder="Footer text">
+
+        <label>Thumbnail URL</label>
+        <input id="thumbnail" placeholder="Image URL">
+
+        <label>Image URL</label>
+        <input id="image" placeholder="Embed image URL">
+
+        <label>Embed URL (makes title clickable)</label>
+        <input id="url" placeholder="https://...">
+
+        <label>Add Fields (optional)</label>
+        <div class="field-group">
+          <input id="field-name" placeholder="Field name">
+          <input id="field-value" placeholder="Field value">
+          <label><input type="checkbox" id="field-inline"> Inline</label>
+        </div>
+
+        <button class="btn" onclick="sendEmbed('${webhookUrl}')">Send Embed</button>
+      </div>
+    `;
+  }
+
+  async function sendEmbed(webhookUrl) {
+    const embed = {
+      title: document.getElementById("title").value,
+      description: document.getElementById("description").value,
+      color: parseInt(document.getElementById("color").value.replace("#", ""), 16),
+      author: { name: document.getElementById("author").value },
+      footer: { text: document.getElementById("footer").value },
+      thumbnail: { url: document.getElementById("thumbnail").value },
+      image: { url: document.getElementById("image").value },
+      url: document.getElementById("url").value,
+      fields: []
+    };
+
+    const fieldName = document.getElementById("field-name").value;
+    const fieldValue = document.getElementById("field-value").value;
+    const fieldInline = document.getElementById("field-inline").checked;
+
+    if (fieldName && fieldValue) {
+      embed.fields.push({
+        name: fieldName,
+        value: fieldValue,
+        inline: fieldInline
+      });
+    }
+
+    if (!embed.author.name) delete embed.author;
+    if (!embed.footer.text) delete embed.footer;
+    if (!embed.thumbnail.url) delete embed.thumbnail;
+    if (!embed.image.url) delete embed.image;
+    if (!embed.url) delete embed.url;
+
+    const payload = {
+      username: document.getElementById("username").value || undefined,
+      embeds: [embed]
+    };
+
+    const res = await fetch(webhookUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        content: `✅ Test message from "${serverName}" webhook tester!`,
-        username: 'Webhook Tester'
-      })
+      body: JSON.stringify(payload)
     });
 
     if (res.ok) {
-      alert("Test message sent successfully!");
+      alert("Embed sent successfully!");
     } else {
-      alert("Failed to send message. Check the webhook URL and permissions.");
+      alert("Failed to send embed. Check webhook and content.");
     }
   }
 
