@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Discord Guild Viewer</title>
+  <title>Discord Webhook Tester</title>
   <style>
     body {
       font-family: 'Segoe UI', sans-serif;
@@ -28,6 +28,11 @@
       border-radius: 10px;
       display: flex;
       align-items: center;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    .guild:hover {
+      background: #3a3d42;
     }
     .guild img {
       width: 48px;
@@ -48,7 +53,8 @@
 <script>
   const clientId = '1293659946164158495';
   const clientSecret = 'pCjnhLBpE01W4uJjzQbgteFYx1YamCpV';
-  const redirectUri = 'https://danielschijvershof.github.io/Testy/'
+  const redirectUri = 'https://danielschijvershof.github.io/Testy/';
+
   const code = new URLSearchParams(window.location.search).get("code");
 
   function login() {
@@ -95,20 +101,45 @@
     const user = await userRes.json();
     const guilds = await guildsRes.json();
 
-    let html = `<h2>Welcome, ${user.username}!</h2><h3>Your Servers:</h3>`;
+    let html = `<h2>Welcome, ${user.username}!</h2><h3>Click a server to test a webhook:</h3>`;
     guilds.forEach(guild => {
       const icon = guild.icon 
         ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
         : 'https://via.placeholder.com/48';
-      html += `<div class="guild"><img src="${icon}" alt=""><span>${guild.name}</span></div>`;
+      html += `<div class="guild" onclick="promptWebhook('${guild.name}')">
+                <img src="${icon}" alt="">
+                <span>${guild.name}</span>
+              </div>`;
     });
     document.getElementById('content').innerHTML = html;
+  }
+
+  async function promptWebhook(serverName) {
+    const url = prompt(`Enter the webhook URL for "${serverName}":`);
+    if (!url || !url.startsWith('https://discord.com/api/webhooks/')) {
+      alert("Invalid webhook URL.");
+      return;
+    }
+
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        content: `✅ Test message from "${serverName}" webhook tester!`,
+        username: 'Webhook Tester'
+      })
+    });
+
+    if (res.ok) {
+      alert("Test message sent successfully!");
+    } else {
+      alert("Failed to send message. Check the webhook URL and permissions.");
+    }
   }
 
   if (code) {
     document.getElementById('content').innerHTML = "<p>Authorizing...</p>";
     exchangeCodeForToken(code);
-    // Remove ?code=... from URL
     window.history.replaceState({}, document.title, redirectUri);
   }
 </script>
