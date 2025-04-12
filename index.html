@@ -2,188 +2,116 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Login with Discord</title>
+  <title>Discord Guild Viewer</title>
   <style>
     body {
-      font-family: Arial, sans-serif;
-      margin: 0;
+      font-family: 'Segoe UI', sans-serif;
       background: #2c2f33;
-      color: #fff;
-    }
-
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 15px 30px;
-      background: #23272a;
-    }
-
-    h1 {
-      margin: 0;
-      font-size: 24px;
-    }
-
-    .login-btn {
-      padding: 10px 20px;
-      font-size: 16px;
-      border: none;
-      background: #5865F2;
-      color: #fff;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-
-    .user-info {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .user-info img {
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
-    }
-
-    .server-list {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 20px;
-      justify-content: center;
-      margin-top: 20px;
-    }
-
-    .server {
-      text-align: center;
-      cursor: pointer;
-    }
-
-    .server img {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-    }
-
-    .content {
-      padding: 50px;
-      text-align: center;
-    }
-
-    .message {
-      margin-top: 20px;
-      padding: 10px;
-      border-radius: 5px;
-      background-color: #ff5555;
       color: white;
       text-align: center;
+      padding: 2rem;
+    }
+    .btn {
+      padding: 12px 24px;
+      font-size: 16px;
+      background-color: #7289da;
+      border: none;
+      color: white;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .guild {
+      background: #2f3136;
+      margin: 10px auto;
+      padding: 10px;
+      width: 300px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+    }
+    .guild img {
+      width: 48px;
+      height: 48px;
+      margin-right: 10px;
+      border-radius: 50%;
     }
   </style>
 </head>
 <body>
-  <header>
-    <h1>My App</h1>
-    <div id="userArea">
-      <button class="login-btn" onclick="loginWithDiscord()">Login with Discord</button>
-    </div>
-  </header>
 
-  <div class="content">
-    <p id="text">Welcome! Please log in with Discord to continue.</p>
-    <div id="serverArea"></div>
-    <div id="messageArea"></div>
-  </div>
+<h1>My Discord Servers</h1>
+<div id="content">
+  <p>Click below to authorize with Discord</p>
+  <button class="btn" onclick="login()">Login with Discord</button>
+</div>
 
-  <script>
-    const clientId = '1293659946164158495';
-    const redirectUri = 'https://danielschijvershof.github.io/Testy/';
-    const scope = 'identify guilds';
+<script>
+  const clientId = '1293659946164158495';
+  const clientSecret = 'pCjnhLBpE01W4uJjzQbgteFYx1YamCpV';
+  const redirectUri = 'https://danielschijvershof.github.io/Testy/'
+  const code = new URLSearchParams(window.location.search).get("code");
 
-    // Hardcoded token for testing purposes (use the bot's token)
-    const TOKEN = 'your-bot-token-here'; // Replace with your actual bot token
+  function login() {
+    const scope = "identify guilds";
+    const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&scope=${scope.replace(" ", "%20")}`;
+    window.location.href = authUrl;
+  }
 
-    function loginWithDiscord() {
-      const authUrl = `https://discord.com/api/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=token&scope=${scope}`;
-      window.location.href = authUrl;
+  async function exchangeCodeForToken(code) {
+    const body = new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      grant_type: 'authorization_code',
+      code: code,
+      redirect_uri: redirectUri,
+      scope: 'identify guilds'
+    });
+
+    const res = await fetch('https://discord.com/api/oauth2/token', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: body
+    });
+
+    if (!res.ok) {
+      document.getElementById("content").innerHTML = "<p>Authorization failed. Try again.</p>";
+      return;
     }
 
-    window.onload = async () => {
-      const hash = window.location.hash;
-      if (hash && hash.includes('access_token')) {
-        const params = new URLSearchParams(hash.substring(1));
-        const accessToken = params.get('access_token');
+    const data = await res.json();
+    loadUserGuilds(data.access_token);
+  }
 
-        const userResponse = await fetch('https://discord.com/api/users/@me', {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
-        });
+  async function loadUserGuilds(token) {
+    const [userRes, guildsRes] = await Promise.all([
+      fetch('https://discord.com/api/users/@me', {
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+      fetch('https://discord.com/api/users/@me/guilds', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+    ]);
 
-        const user = await userResponse.json();
+    const user = await userRes.json();
+    const guilds = await guildsRes.json();
 
-        const userArea = document.getElementById('userArea');
-        userArea.innerHTML = `
-          <div class="user-info">
-            <span>${user.username}#${user.discriminator}</span>
-            <img src="https://cdn.discordapp.com/avatars/${user.id}/${user.avatar}.png?size=64" alt="User Avatar">
-          </div>
-        `;
-        const text = document.getElementById('text');
-        text.style.display = 'none';
+    let html = `<h2>Welcome, ${user.username}!</h2><h3>Your Servers:</h3>`;
+    guilds.forEach(guild => {
+      const icon = guild.icon 
+        ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
+        : 'https://via.placeholder.com/48';
+      html += `<div class="guild"><img src="${icon}" alt=""><span>${guild.name}</span></div>`;
+    });
+    document.getElementById('content').innerHTML = html;
+  }
 
-        // Fetch bot's guilds (servers) using the bot token
-        const guildsResponse = await fetch('https://discord.com/api/v10/users/@me/guilds', {
-          headers: {
-            Authorization: `Bot ${TOKEN}` // Bot token is used here
-          }
-        });
+  if (code) {
+    document.getElementById('content').innerHTML = "<p>Authorizing...</p>";
+    exchangeCodeForToken(code);
+    // Remove ?code=... from URL
+    window.history.replaceState({}, document.title, redirectUri);
+  }
+</script>
 
-        const guilds = await guildsResponse.json();
-        const serverArea = document.getElementById('serverArea');
-        serverArea.innerHTML = '<h2>Your Bot Servers (Admin/Owner Only):</h2>';
-
-        // Filter the guilds based on user's admin/ownership
-        for (const guild of guilds) {
-          const memberResponse = await fetch(`https://discord.com/api/v10/guilds/${guild.id}/members/${user.id}`, {
-            headers: {
-              Authorization: `Bot ${TOKEN}`
-            }
-          });
-
-          const member = await memberResponse.json();
-          const hasAdminPermission = member.permissions.includes('8'); // 8 is the integer value for Administrator permission
-          const isOwner = guild.owner_id === user.id;
-
-          if (hasAdminPermission || isOwner) {
-            const serverElement = document.createElement('div');
-            serverElement.classList.add('server');
-            serverElement.innerHTML = `
-              <img src="https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=64" alt="${guild.name} Icon">
-              <p>${guild.name}</p>
-            `;
-            serverElement.onclick = () => checkBotInServer(guild.id, guild.name);
-            serverArea.appendChild(serverElement);
-          }
-        }
-      }
-    };
-
-    async function checkBotInServer(guildId, guildName) {
-      const messageArea = document.getElementById('messageArea');
-      const botInGuildResponse = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${TOKEN}`, {
-        headers: {
-          Authorization: `Bot ${TOKEN}`
-        }
-      });
-
-      if (botInGuildResponse.ok) {
-        // If the bot is in the server, say it's good
-        messageArea.innerHTML = `<div class="message">Bot is already in ${guildName}. You're good!</div>`;
-      } else {
-        // If the bot isn't in the server, tell the user to add it
-        messageArea.innerHTML = `<div class="message">The bot needs to be added to ${guildName}.</div>`;
-      }
-    }
-  </script>
 </body>
 </html>
